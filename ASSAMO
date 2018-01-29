@@ -1,0 +1,293 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Diagnostics;
+using System.Drawing;
+using System.Runtime.InteropServices;
+using System.Text;
+using System.Windows.Forms;
+
+namespace MWG
+{
+    public partial class Form1 : Form
+    {
+        private static Hashtable processWnd = null;
+
+        public delegate bool WNDENUMPROC(IntPtr hwnd, uint lParam);
+
+        [DllImport("user32.dll", EntryPoint = "EnumWindows", SetLastError = true)]
+        public static extern bool EnumWindows(WNDENUMPROC lpEnumFunc, uint lParam);
+
+        /// <summary>  
+        /// 用于枚举子窗体是的委托  
+        /// </summary>  
+        /// <param name="WindowHandle">窗体句柄</param>  
+        /// <param name="num">自定义</param>  
+        /// <returns></returns>  
+        public delegate bool EnumChildWindow(IntPtr WindowHandle, string num);
+        /// <summary>  
+        /// 获取指定窗体的所有子窗体  
+        /// </summary>  
+        /// <param name="WinHandle">窗体句柄</param>  
+        /// <param name="ec">回调委托</param>  
+        /// <param name="name">自定义</param>  
+        /// <returns></returns>  
+        [DllImport("User32.dll")]
+        public static extern int EnumChildWindows(IntPtr WinHandle, EnumChildWindow ecw, string name);
+        /// <summary>  
+        /// 获取指定窗体的标题  
+        /// </summary>  
+        /// <param name="WinHandle">窗体句柄</param>  
+        /// <param name="Title">缓冲区取用于存储标题</param>  
+        /// <param name="size">缓冲区大小</param>  
+        /// <returns></returns>  
+        [DllImport("User32.dll")]
+        public static extern int GetWindowText(IntPtr WinHandle, StringBuilder Title, int size);
+        /// <summary>  
+        /// 获取窗体类型  
+        /// </summary>  
+        /// <param name="WinHandle">窗体句柄</param>  
+        /// <param name="Type">类型</param>  
+        /// <param name="size">缓冲区大小</param>  
+        /// <returns></returns>  
+        [DllImport("user32.dll")]
+        public static extern int GetClassName(IntPtr WinHandle, StringBuilder Type, int size);
+        /// <summary>  
+        /// 根据句柄获得进程id值  
+        /// </summary>  
+        /// <param name="handle">句柄</param>  
+        /// <param name="pid"></param>  
+        /// <returns></returns>  
+        [DllImport("user32")]
+        private static extern int GetWindowThreadProcessId(IntPtr handle, out int pid);
+        IntPtr mainHwnd = IntPtr.Zero;//登录窗口句柄  
+        string typeName = string.Empty;//启动程序的窗口标题  
+
+        [DllImport("user32.dll", EntryPoint = "GetParent", SetLastError = true)]
+        public static extern IntPtr GetParent(IntPtr hWnd);
+
+        [DllImport("user32.dll", EntryPoint = "IsWindow")]
+        public static extern bool IsWindow(IntPtr hWnd);
+
+        [DllImport("shell32.dll", CharSet = CharSet.Ansi, EntryPoint = "ShellExecuteA", ExactSpelling = true, SetLastError = true)]
+        private static extern int ShellExecute(int hwnd, [MarshalAs(UnmanagedType.VBByRefStr)] ref string lpOperation, [MarshalAs(UnmanagedType.VBByRefStr)] ref string lpFile, [MarshalAs(UnmanagedType.VBByRefStr)] ref string lpParameters, [MarshalAs(UnmanagedType.VBByRefStr)] ref string lpDirectory, int nShowCmd);
+
+        [DllImport("User32.dll", EntryPoint = "FindWindow")]
+        private static extern IntPtr FindWindow(string lpClassName, string lpWindowName);
+
+        [DllImport("coredll.dll", EntryPoint = "FindWindowW", SetLastError = true)]
+        private static extern IntPtr FindWindowW(string lpClassName, string lpWindowName);
+
+        [DllImport("kernel32.dll", EntryPoint = "SetLastError")]
+        public static extern void SetLastError(uint dwErrCode);
+
+        [DllImport("user32.dll", EntryPoint = "FindWindowEx", CharSet = CharSet.Auto)]
+        extern static IntPtr FindWindowEx(IntPtr hwndParent, IntPtr hwndChildAfter, string lpszClass, string lpszWindow);
+        [DllImport("user32.dll", EntryPoint = "SendMessage")]
+        private static extern int SendMessage(IntPtr hwnd, int wMsg, int wParam, int lParam);
+
+        /// <summary>  
+        /// 枚举窗体  
+        /// </summary>  
+        /// <param name="handle"></param>  
+        /// <param name="num"></param>  
+        /// <returns></returns>  
+        private bool EnumChild(IntPtr handle, string num)
+        {
+            StringBuilder title = new StringBuilder();
+            //StringBuilder type = new StringBuilder();  
+            title.Length = 100;
+            //type.Length = 100;  
+
+            GetWindowText(handle, title, 100);//取标题  
+                                              //GetClassName(handle, type, 100);//取类型  
+
+            if (title.ToString() == typeName)
+            {
+                mainHwnd = handle;
+                return false;
+            }
+            return true;
+        }
+        public Form1()
+        {
+            InitializeComponent();
+
+        }
+
+
+        //代码调用  
+        public void TestASSA()
+        {
+            String path = @"C:\Working\SRC\CSHARP\WFP\WFP\bin\Release\WFP.exe";
+            String lpOperation = "open";
+            String lpParameters = String.Empty;
+            String lpDirectory = String.Empty;
+            //Process process = Process.Start(path);//path是程序的绝对路径
+
+
+            //ShellExecute(0, ref lpOperation, ref path, ref lpParameters, ref lpDirectory, 1);
+            //System.Threading.Thread.Sleep(3000);
+
+            System.Diagnostics.ProcessStartInfo psi = new System.Diagnostics.ProcessStartInfo(path);
+            psi.RedirectStandardOutput = true;
+            psi.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
+            psi.UseShellExecute = false;
+            System.Diagnostics.Process listFiles;
+            listFiles = System.Diagnostics.Process.Start(psi);
+            System.IO.StreamReader myOutput = listFiles.StandardOutput;
+            listFiles.WaitForExit(2000);
+
+            if (listFiles.HasExited)
+            {
+                string output = myOutput.ReadToEnd();
+            }
+        }
+
+        private void GetHandle()
+        {
+
+            String header1 = "ASSA";
+            String className = String.Empty;
+            IntPtr handle1 = FindWindowW(className, header1);
+
+            MessageBox.Show(handle1.ToString());
+        }
+
+
+        public static IntPtr GetCurrentWindowHandle()
+        {
+            IntPtr ptrWnd = IntPtr.Zero;
+            uint uiPid = (uint)Process.GetCurrentProcess().Id;  // 当前进程 ID  
+            object objWnd = processWnd[uiPid];
+
+            if (objWnd != null)
+            {
+                ptrWnd = (IntPtr)objWnd;
+                if (ptrWnd != IntPtr.Zero && IsWindow(ptrWnd))  // 从缓存中获取句柄  
+                {
+                    return ptrWnd;
+                }
+                else
+                {
+                    ptrWnd = IntPtr.Zero;
+                }
+            }
+
+            bool bResult = EnumWindows(new WNDENUMPROC(EnumWindowsProc), uiPid);
+            // 枚举窗口返回 false 并且没有错误号时表明获取成功  
+            if (!bResult && Marshal.GetLastWin32Error() == 0)
+            {
+                objWnd = processWnd[uiPid];
+                if (objWnd != null)
+                {
+                    ptrWnd = (IntPtr)objWnd;
+                }
+            }
+
+            return ptrWnd;
+        }
+
+        private static bool EnumWindowsProc(IntPtr hwnd, uint lParam)
+        {
+            int uiPid = 0;
+
+            if (GetParent(hwnd) == IntPtr.Zero)
+            {
+                GetWindowThreadProcessId(hwnd, out uiPid);
+                if (uiPid == lParam)    // 找到进程对应的主窗口句柄  
+                {
+                    processWnd[uiPid] = hwnd;   // 把句柄缓存起来  
+                    SetLastError(0);    // 设置无错误  
+                    return false;   // 返回 false 以终止枚举窗口  
+                }
+            }
+
+            return true;
+        }
+
+        private void GetAllProcess()
+        {
+            IntPtr ptrWnd = IntPtr.Zero;
+            string str = "";
+            Process[] processes;
+            object objWnd;
+
+            //Get the list of current active processes.
+            processes = System.Diagnostics.Process.GetProcesses();
+            //Grab some basic information for each process.
+            Process process;
+            for (int i = 0; i < processes.Length - 1; i++)
+            {
+                process = processes[i];
+                if (process.ProcessName.Equals("WFP"))
+                {
+                    uint pid = (uint)process.Id;
+                    bool bResult = EnumWindows(new WNDENUMPROC(EnumWindowsProc), pid);
+                    // 枚举窗口返回 false 并且没有错误号时表明获取成功  
+                    if (!bResult && Marshal.GetLastWin32Error() == 0)
+                    {
+                        objWnd = processWnd[process.Id];
+                        if (objWnd != null)
+                        {
+                            ptrWnd = (IntPtr)objWnd;
+                            string lpsz1 = String.Empty;
+                            string btn = "ClickMe2";
+                            IntPtr butt = FindWindowEx(ptrWnd, IntPtr.Zero, null, btn);//这里的1是，计算器上名字为1的按钮
+                            SendMessage(butt, 0xF5, 0, 0);
+
+                        }
+                    }
+
+                    str = str + Convert.ToString(process.Id) + " : " +
+                                process.ProcessName + "|" + ptrWnd.ToString() + "\r\n";
+                }
+            }
+            //Display the process information to the user
+            System.Windows.Forms.MessageBox.Show(str);
+            //Default the TextBox value to the first process ID - for the GetByID button
+            MessageBox.Show(str);
+        }
+
+        private void GetSingleProcess()
+        {
+            const int BM_CLICK = 0xF5;
+            IntPtr maindHwnd = FindWindow(null, "ASSA"); //获得QQ登陆框的句柄
+            if (maindHwnd != IntPtr.Zero)
+            {
+                StringBuilder title = new StringBuilder();
+                IntPtr childHwnd = FindWindowEx(maindHwnd, IntPtr.Zero, null, "ClickMe2");   //获得按钮的句柄
+                IntPtr childHwnd3 = FindWindowEx(maindHwnd, IntPtr.Zero, null, "lbl_2");   //获得按钮的句柄
+                int childHwnd2 = GetWindowText(childHwnd3, title, 256);// FindWindowEx(maindHwnd, IntPtr.Zero, null, "lbl_2");   //获得按钮的句柄
+                MessageBox.Show(title.ToString());
+                if (childHwnd != IntPtr.Zero)
+                {
+                    SendMessage(childHwnd, BM_CLICK, 0, 0);     //发送点击按钮的消息
+                }
+                else
+                {
+                    MessageBox.Show("没有找到子窗口");
+                }
+            }
+            else
+            {
+                MessageBox.Show("没有找到窗口");
+            }
+
+         
+        }
+
+
+
+        private void btnClickMe_Click(object sender, EventArgs e)
+        {
+            processWnd = new Hashtable();
+            TestASSA();
+            // GetCurrentWindowHandle();
+            //GetAllProcess();
+            GetSingleProcess();
+        }
+    }
+}
