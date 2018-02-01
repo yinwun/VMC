@@ -1,0 +1,86 @@
+
+        private void Form1_Load(object sender, EventArgs e)
+        {
+            lvProcessData.FullRowSelect = true;
+            lvProcessData.Columns.Add("ProcessName", 150);
+            lvProcessData.Columns.Add("ProcessID", 100);
+            lvProcessData.Columns.Add("Memory", 100);
+            lvProcessData.Columns.Add("Handle", 100);
+            LoadDatagridView();
+
+
+
+
+        }
+        
+        
+           private void btnKill_Click(object sender, EventArgs e)
+        {
+            int pID = 0;
+            if (lvProcessData.SelectedItems.Count > 0)
+            {
+                int.TryParse(lvProcessData.SelectedItems[0].SubItems[1].Text, out pID);
+                Process process = Process.GetProcessById(pID);
+                process.Kill();
+
+                lvProcessData.SelectedItems.Clear();
+            }
+
+        }
+        
+              private uint GetHandleFromGrid()
+        {
+            uint hd = 0;
+            if (lvProcessData.SelectedItems.Count > 0)
+            {
+                uint.TryParse(lvProcessData.SelectedItems[0].SubItems[3].Text, out hd);
+            }
+            return hd;
+        }
+        
+           private void LoadDatagridView()
+        {
+
+            lvProcessData.Items.Clear();
+
+            Process[] proList = Process.GetProcesses(".");//获得本机的进程
+
+            //IntPtr hwn = IntPtr.Zero;
+            foreach (Process p in proList)
+            {
+
+                if (p.ProcessName.Equals("WFP"))
+                {
+                    string[] arr = new string[4];
+                    ListViewItem itm;
+                    //add items to ListView
+                    arr[0] = p.ProcessName;
+                    arr[1] = p.Id.ToString();
+                    arr[2] = p.PrivateMemorySize64.ToString();
+                    arr[3] = p.MainWindowHandle.ToString();
+
+
+                    hwn = p.MainWindowHandle;
+                    itm = new ListViewItem(arr);
+                    lvProcessData.Items.Add(itm);
+                }
+
+
+            }
+        }
+        
+        
+        private void btnHideIcon_Click(object sender, EventArgs e)
+        {
+            IntPtr maindHwnd = FindWindow(null, "ASSA"); //获得QQ登陆框的句柄
+
+            uint hd = GetHandleFromGrid();
+            ShowWindow((IntPtr)hd, 0);
+        }
+
+        private void btnShowIcon_Click(object sender, EventArgs e)
+        {
+            IntPtr maindHwnd = FindWindow(null, "ASSA"); //获得QQ登陆框的句柄
+            uint hd = GetHandleFromGrid();
+            ShowWindow((IntPtr)hd, 1);
+        }
