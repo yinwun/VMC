@@ -1,0 +1,118 @@
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Diagnostics;
+using System.Drawing;
+using System.Text;
+using System.Threading;
+using System.Windows.Forms;
+using System.Timers;
+
+namespace MWG
+{
+    public partial class Form2 : Form
+    {
+        System.Timers.Timer myTimer;
+        public Form2()
+        {
+            InitializeComponent();
+        }
+
+        private void Form2_Load(object sender, EventArgs e)
+        {
+            myTimer = new System.Timers.Timer(2000);//定时周期2秒
+            myTimer.Elapsed += myTimer_Elapsed;//到2秒了做的事件
+            myTimer.AutoReset = true; //是否不断重复定时器操作
+        }
+
+        private BackgroundWorker _demoBGWorker = new BackgroundWorker();
+        private void btnStartThread_Click(object sender, EventArgs e)
+        {
+            //LoadDatagridViewMethod();
+            myTimer.Enabled = true; //定时器开始用
+            //如果不写下面这句会有一个异常。
+            //异常：线程间操作无效: 从不是创建控件"richtextbox"的线程访问它
+            //但这不是最好的方法。如果只有一个进程调用richtextbox而已。就可以用下面这句
+            //如果有多个线程调用richtextbox等控件。就要用委托。具体百度
+            //一篇参考博客http://www.cnblogs.com/zyh-nhy/archive/2008/01/28/1056194.html
+            Control.CheckForIllegalCrossThreadCalls = false;
+        }
+
+
+        private void btnStopThread_Click(object sender, EventArgs e)
+        {
+            myTimer.Enabled = false; //定时器开始用
+        }
+
+        private void myTimer_Elapsed(object sender, System.Timers.ElapsedEventArgs e)
+        {
+            using (BackgroundWorker bw = new BackgroundWorker())
+            {
+                bw.RunWorkerCompleted += new RunWorkerCompletedEventHandler(bw_RunWorkerCompleted);
+                bw.DoWork += new DoWorkEventHandler(bw_DoWork);
+                bw.RunWorkerAsync();
+            }
+        }
+
+        void bw_DoWork(object sender, DoWorkEventArgs e)
+        {
+            //MessageBox.Show(Thread.CurrentThread.ManagedThreadId.ToString());
+            System.Threading.Thread.Sleep(1000);
+            e.Result = e.Argument;//这里只是简单的把参数当做结果返回，当然您也可以在这里做复杂的处理后，再返回自己想要的结果(这里的操作是在另一个线程上完成的)
+        }
+
+        void bw_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
+        {
+            //这时后台线程已经完成，并返回了主线程，所以可以直接使用UI控件了
+            lvProcessData.BeginUpdate();//防listview闪烁开始
+            LoadDatagridViewMethod();
+            lvProcessData.EndUpdate();//防listview闪烁结束
+            //MessageBox.Show(e.Result.ToString());
+            //MessageBox.Show(Thread.CurrentThread.ManagedThreadId.ToString());
+
+        }
+
+
+        public void LoadDatagridViewMethod()
+        {
+            lvProcessData.Clear();
+            lvProcessData.Items.Clear();
+
+            lvProcessData.FullRowSelect = true;
+            lvProcessData.Columns.Add("ProcessName", 150);
+            lvProcessData.Columns.Add("ProcessID", 100);
+            lvProcessData.Columns.Add("Memory", 100);
+            lvProcessData.Columns.Add("Handle", 100);
+
+            Process[] proList = Process.GetProcesses(".");//获得本机的进程
+            //IntPtr hwn = IntPtr.Zero;
+            foreach (Process p in proList)
+            {
+
+                if (p.ProcessName.Equals("WFP"))
+                {
+                    string[] arr = new string[4];
+                    ListViewItem itm;
+                    //add items to ListView
+                    arr[0] = p.ProcessName;
+                    arr[1] = p.Id.ToString();
+                    arr[2] = p.WorkingSet64.ToString();
+                    arr[3] = p.MainWindowHandle.ToString();
+
+                    itm = new ListViewItem(arr);
+                    lvProcessData.Items.Add(itm);
+                }
+            }
+        }
+
+        protected override void WndProc(ref Message m)
+        {
+            if (m.Msg == 0x0014) // 禁掉清除背景消息
+                return;
+            base.WndProc(ref m);
+        }
+
+
+    }
+}
