@@ -24,6 +24,16 @@ namespace MWG
             myTimer = new System.Timers.Timer(2000);//定时周期2秒
             myTimer.Elapsed += myTimer_Elapsed;//到2秒了做的事件
             myTimer.AutoReset = true; //是否不断重复定时器操作
+
+            lvProcessData.Clear();
+
+            lvProcessData.FullRowSelect = true;
+            lvProcessData.Columns.Add("ProcessName", 150);
+            lvProcessData.Columns.Add("ProcessID", 100);
+            lvProcessData.Columns.Add("Memory", 100);
+            lvProcessData.Columns.Add("Handle", 100);
+
+            this.SetStyle(ControlStyles.EnableNotifyMessage, true);
         }
 
         private BackgroundWorker _demoBGWorker = new BackgroundWorker();
@@ -65,43 +75,72 @@ namespace MWG
         void bw_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
         {
             //这时后台线程已经完成，并返回了主线程，所以可以直接使用UI控件了
-            lvProcessData.BeginUpdate();//防listview闪烁开始
             LoadDatagridViewMethod();
-            lvProcessData.EndUpdate();//防listview闪烁结束
-            //MessageBox.Show(e.Result.ToString());
-            //MessageBox.Show(Thread.CurrentThread.ManagedThreadId.ToString());
+            MonitorASSA();
 
         }
 
 
         public void LoadDatagridViewMethod()
         {
-            lvProcessData.Clear();
-            lvProcessData.Items.Clear();
-
-            lvProcessData.FullRowSelect = true;
-            lvProcessData.Columns.Add("ProcessName", 150);
-            lvProcessData.Columns.Add("ProcessID", 100);
-            lvProcessData.Columns.Add("Memory", 100);
-            lvProcessData.Columns.Add("Handle", 100);
-
             Process[] proList = Process.GetProcesses(".");//获得本机的进程
-            //IntPtr hwn = IntPtr.Zero;
+            foreach (ListViewItem lvItm in lvProcessData.Items)
+            {
+                bool isFind = false;
+                foreach (Process p in proList)
+                {
+                    if (!p.ProcessName.Equals("WFP")) continue;
+
+                    int pID = 0;
+                    int.TryParse(lvItm.SubItems[1].Text, out pID);
+                    if (pID == p.Id)
+                    {
+                        lvItm.SubItems[2].Text = (p.WorkingSet64 / 1024.00 / 1024.00).ToString("0.00");
+                        isFind = true;
+                        break;
+                    }
+                }
+
+                if (!isFind)
+                {
+                    lvItm.Remove();
+                }
+
+            }
+
+
             foreach (Process p in proList)
             {
+                if (!p.ProcessName.Equals("WFP")) continue;
 
-                if (p.ProcessName.Equals("WFP"))
+                String strpID = String.Format("{0}", p.Id);
+                ListViewItem itmFind = lvProcessData.FindItemWithText(strpID);
+                if (itmFind == null)
                 {
                     string[] arr = new string[4];
                     ListViewItem itm;
                     //add items to ListView
                     arr[0] = p.ProcessName;
                     arr[1] = p.Id.ToString();
-                    arr[2] = p.WorkingSet64.ToString();
+                    arr[2] = (p.WorkingSet64 / 1024.00 / 1024.00).ToString("0.00");
                     arr[3] = p.MainWindowHandle.ToString();
 
                     itm = new ListViewItem(arr);
                     lvProcessData.Items.Add(itm);
+                }
+            }
+
+        }
+
+        public void MonitorASSA()
+        {
+            foreach (ListViewItem lvItm in lvProcessData.Items)
+            {
+                long workingSet = 0;
+                long.TryParse(lvItm.SubItems[2].Text, out workingSet);
+                if (workingSet < 0)
+                {
+                    MessageBox.Show("A");
                 }
             }
         }
