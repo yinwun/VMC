@@ -123,3 +123,6 @@ namespace WFP
         }
     }
 }
+
+PostMessage(pl, WM_LBUTTONDOWN, 1,MakeLParam(70,20));
+        PostMessage(pl, WM_LBUTTONUP, 0,MakeLParam(71,21));
